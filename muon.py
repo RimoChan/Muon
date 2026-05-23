@@ -2,6 +2,20 @@ import torch
 import torch.distributed as dist
 
 
+print('使用随机舍入的Muon！')
+
+
+def stochastic_round_add_(param: torch.Tensor, update: torch.Tensor, alpha: float = 1.0):
+    if param.dtype != torch.bfloat16:
+        param.add_(update, alpha=alpha)
+        return
+    p_fp32 = param.to(torch.float32) + alpha * update.to(torch.float32)
+    noise = torch.randint(0, 65536, p_fp32.shape, dtype=torch.int32, device=param.device)
+    p_stoch_int32 = p_fp32.view(torch.int32) + noise
+    p_stoch_int32 = p_stoch_int32.bitwise_and(-65536)
+    param.copy_(p_stoch_int32.view(torch.float32).bfloat16())
+
+
 def zeropower_via_newtonschulz5(G, steps: int):
     """
     Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
@@ -90,7 +104,8 @@ class Muon(torch.optim.Optimizer):
                         state["momentum_buffer"] = torch.zeros_like(p)
                     update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
                     p.mul_(1 - group["lr"] * group["weight_decay"])
-                    p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                    # p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                    stochastic_round_add_(p, update.reshape(p.shape), alpha=-group["lr"])
                 dist.all_gather(params_pad[base_i:base_i + dist.get_world_size()], params_pad[base_i + dist.get_rank()])
 
         return loss
@@ -122,7 +137,8 @@ class SingleDeviceMuon(torch.optim.Optimizer):
                     state["momentum_buffer"] = torch.zeros_like(p)
                 update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
                 p.mul_(1 - group["lr"] * group["weight_decay"])
-                p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                # p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                stochastic_round_add_(p, update.reshape(p.shape), alpha=-group["lr"])
 
         return loss
 
@@ -204,7 +220,8 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
                             state["momentum_buffer"] = torch.zeros_like(p)
                         update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
                         p.mul_(1 - group["lr"] * group["weight_decay"])
-                        p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                        # p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                        stochastic_round_add_(p, update.reshape(p.shape), alpha=-group["lr"])
                     dist.all_gather(params_pad[base_i:base_i + dist.get_world_size()], params_pad[base_i + dist.get_rank()])
             else:
                 for p in group["params"]:
@@ -220,7 +237,8 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
                     update = adam_update(p.grad, state["exp_avg"], state["exp_avg_sq"],
                                          state["step"], group["betas"], group["eps"])
                     p.mul_(1 - group["lr"] * group["weight_decay"])
-                    p.add_(update, alpha=-group["lr"])
+                    # p.add_(update, alpha=-group["lr"])
+                    stochastic_round_add_(p, update, alpha=-group["lr"])
 
         return loss
 
@@ -266,7 +284,8 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
                         state["momentum_buffer"] = torch.zeros_like(p)
                     update = muon_update(p.grad, state["momentum_buffer"], beta=group["momentum"])
                     p.mul_(1 - group["lr"] * group["weight_decay"])
-                    p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                    # p.add_(update.reshape(p.shape), alpha=-group["lr"])
+                    stochastic_round_add_(p, update.reshape(p.shape), alpha=-group["lr"])
             else:
                 for p in group["params"]:
                     if p.grad is None:
@@ -281,6 +300,7 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
                     update = adam_update(p.grad, state["exp_avg"], state["exp_avg_sq"],
                                          state["step"], group["betas"], group["eps"])
                     p.mul_(1 - group["lr"] * group["weight_decay"])
-                    p.add_(update, alpha=-group["lr"])
+                    # p.add_(update, alpha=-group["lr"])
+                    stochastic_round_add_(p, update, alpha=-group["lr"])
 
         return loss

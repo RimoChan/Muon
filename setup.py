@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='muon-optimizer',
-    version='0.1.0',
+    version='0.1.0b2',
     author='Keller Jordan',
     author_email='kjordan4077@gmail.com',
     description='Muon opimizer',
