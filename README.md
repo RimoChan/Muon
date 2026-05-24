@@ -2,10 +2,12 @@
 
 This repo contains an implementation of the `Muon` optimizer originally described in [this thread](https://x.com/kellerjordan0/status/1842300916864844014) and [this writeup](https://kellerjordan.github.io/posts/muon/).
 
+原版在bfloat16下训练会有数值问题，所以给它实现了带随机舍入的加法和乘法。
+
 ## Installation
 
 ```
-pip install git+https://github.com/KellerJordan/Muon
+pip install git+https://github.com/RimoChan/Muon
 ```
 
 ## Usage
