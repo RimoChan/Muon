@@ -2,11 +2,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='muon-optimizer',
-    version='0.1.0b3',
-    author='Keller Jordan',
+    version='0.1.0b4',
+    author='Keller Jordan, RimoChan',
     author_email='kjordan4077@gmail.com',
     description='Muon opimizer',
-    long_description=open('README.md').read(),
+    long_description=open('README.md', encoding='utf8').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/KellerJordan/Muon',
     #packages=find_packages(),
